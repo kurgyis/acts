@@ -181,6 +181,9 @@ ActsExamples::ProcessCode ActsExamples::SeedingAlgorithm::execute(
     hit_id++;
   }
 
+  //TODO
+  //here I could use the spVec and the layer linking to make the new seeding thing.
+
   // create grid with bin sizes according to the configured geometry
   std::unique_ptr<Acts::SpacePointGrid<SimSpacePoint>> grid =
       Acts::SpacePointGridCreator::createGrid<SimSpacePoint>(gridConf);

@@ -45,6 +45,7 @@ Seedfinder<external_spacepoint_t, platform_t>::createSeedsForGroup(
     float zM = spM->z();
     float varianceRM = spM->varianceR();
     float varianceZM = spM->varianceZ();
+    auto layerid = spM->sp().m_geoId.layer();
 
     // bottom space point
     std::vector<const InternalSpacePoint<external_spacepoint_t>*>

@@ -88,7 +88,7 @@ int seedingExample(int argc, char* argv[],
   ActsExamples::SeedingPerformanceWriter::Config seedPerfCfg;
   // seedPerfCfg.inputSeeds = seeding.outputSeeds;
   seedPerfCfg.inputSeeds = "seeds";
-  seedPerfCfg.inputProtoTracks = seeding.outputProtoTracks;
+  seedPerfCfg.inputProtoSeeds = seeding.outputProtoTracks;
   seedPerfCfg.inputParticles = particleReader.outputParticles;
   seedPerfCfg.inputClusters = clusterReaderCfg.outputClusters;
   seedPerfCfg.inputHitParticlesMap = clusterReaderCfg.outputMeasurementParticlesMap;
