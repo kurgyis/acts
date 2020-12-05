@@ -33,6 +33,9 @@ class InternalSpacePoint {
   InternalSpacePoint<SpacePoint>& operator=(
       const InternalSpacePoint<SpacePoint>&);
 
+  InternalSpacePoint<SpacePoint>& operator<(
+      const InternalSpacePoint<SpacePoint>&);
+
   const float& x() const { return m_x; }
   const float& y() const { return m_y; }
   const float& z() const { return m_z; }
@@ -83,6 +86,11 @@ inline InternalSpacePoint<SpacePoint>::InternalSpacePoint(
   m_r = sp.m_r;
   m_varianceR = sp.m_varianceR;
   m_varianceZ = sp.m_varianceZ;
+}
+
+template <typename SpacePoint>
+inline InternalSpacePoint<SpacePoint>& InternalSpacePoint<SpacePoint>::operator<(const InternalSpacePoint<SpacePoint>& sp){
+  return (m_r > sp->radius());
 }
 
 }  // end of namespace Acts

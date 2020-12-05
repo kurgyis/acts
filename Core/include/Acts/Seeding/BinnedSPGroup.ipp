@@ -34,9 +34,13 @@ Acts::BinnedSPGroup<external_spacepoint_t>::BinnedSPGroup(
   // create number of bins equal to number of millimeters rMax
   // (worst case minR: configured minR + 1mm)
   size_t numRBins = (config.rMax + config.beamPos.norm());
+  /*
   std::vector<std::vector<
       std::unique_ptr<const InternalSpacePoint<external_spacepoint_t>>>>
       rBins(numRBins);
+  */
+  std::vector<std::unique_ptr<const InternalSpacePoint<external_spacepoint_t>>> rsorted;
+
   for (spacepoint_iterator_t it = spBegin; it != spEnd; it++) {
     if (*it == nullptr) {
       continue;
@@ -68,19 +72,24 @@ Acts::BinnedSPGroup<external_spacepoint_t>::BinnedSPGroup(
     if (rIndex >= numRBins) {
       continue;
     }
-    rBins[rIndex].push_back(std::move(isp));
+    rsorted.push_back(std::move(isp));
+    //rBins[rIndex].push_back(std::move(isp));
   }
+
+  //sort in R
+  //sort(rsorted.begin(), rsorted.end());
+
   // fill rbins into grid such that each grid bin is sorted in r
   // space points with delta r < rbin size can be out of order
-  for (auto& rbin : rBins) {
-    for (auto& isp : rbin) {
+  //for (auto& rbin : rBins) {
+    for (auto& isp : rsorted) {
       Acts::Vector2D spLocation(isp->phi(), isp->z());
       std::vector<
           std::unique_ptr<const InternalSpacePoint<external_spacepoint_t>>>&
           bin = grid->atPosition(spLocation);
       bin.push_back(std::move(isp));
     }
-  }
+  //}
   m_binnedSP = std::move(grid);
   m_bottomBinFinder = botBinFinder;
   m_topBinFinder = tBinFinder;

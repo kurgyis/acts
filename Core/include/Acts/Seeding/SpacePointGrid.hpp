@@ -36,6 +36,7 @@ struct SpacePointGridConfig {
   // maximum forward direction expressed as cot(theta)
   float cotThetaMax;
 };
+
 template <typename external_spacepoint_t>
 using SpacePointGrid =
     detail::Grid<std::vector<std::unique_ptr<

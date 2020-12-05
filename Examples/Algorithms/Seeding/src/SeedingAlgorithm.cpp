@@ -7,6 +7,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 #include "ActsExamples/Seeding/SeedingAlgorithm.hpp"
+#include "ActsExamples/Seeding/LayerLinker.h"
 
 #include "Acts/EventData/TrackParameters.hpp"
 #include "Acts/Geometry/DetectorElementBase.hpp"
@@ -148,7 +149,7 @@ ActsExamples::ProcessCode ActsExamples::SeedingAlgorithm::execute(
 
   // covariance tool, sets covariances per spacepoint as required
   auto ct = [=](const SimSpacePoint& sp, float, float,
-                float) -> Acts::Vector2D {
+               float) -> Acts::Vector2D {
     return {sp.varianceR, sp.varianceZ};
   };
 
@@ -162,7 +163,10 @@ ActsExamples::ProcessCode ActsExamples::SeedingAlgorithm::execute(
 
   // create the space points
   std::size_t clustCounter = 0;
-  std::vector<const SimSpacePoint*> spVec;
+  //std::vector<const SimSpacePoint*> spVec;
+
+  std::map<unsigned int, std::vector<const SimSpacePoint*>> spMap;
+
   // since clusters are ordered, we simply count the hit_id as we read
   // clusters. Hit_id isn't stored in a cluster. This is how
   // CsvPlanarClusterWriter did it.
@@ -175,7 +179,21 @@ ActsExamples::ProcessCode ActsExamples::SeedingAlgorithm::execute(
     if (volumeId >= 7 and volumeId <= 9) {  // pixel detector
       SimSpacePoint* SP =
           transformSP(hit_id, geoId, cluster, hitParticlesMap, ctx);
-      spVec.push_back(SP);
+      std::size_t layerId = geoId.layer();
+      unsigned int completeId = 1000*volumeId + layerId;
+      auto link_map_it = spMap.find(completeId);
+      if(link_map_it == spMap.end())
+      {
+        std::vector<const SimSpacePoint*> spVec;
+        spVec.push_back(SP);
+        spMap[completeId] = spVec;
+      }
+      else
+      {
+        link_map_it->second.push_back(SP);
+      }
+      
+      //spVec.push_back(SP);
       clustCounter++;
     }
     hit_id++;
@@ -183,7 +201,67 @@ ActsExamples::ProcessCode ActsExamples::SeedingAlgorithm::execute(
 
   //TODO
   //here I could use the spVec and the layer linking to make the new seeding thing.
+  std::ifstream linkFile("/gpfs/slac/atlas/fs1/u/kurgyis/work/data/connections.bin",std::ios::binary);
+  float th = 0.02;
+  LAYER_LINKER* ll = new LAYER_LINKER(linkFile,th);
 
+
+  //Temporary solution
+  std::vector<const SimSpacePoint*> spVec;
+
+  std::vector<std::vector<Acts::Seed<SimSpacePoint>>> seedVector;
+  for(auto lay_it = ll->link_map.begin();lay_it != ll->link_map.end(); ++lay_it)
+  {
+    unsigned int midID = lay_it->first;
+    for(auto& botID : lay_it->second.first)
+    {
+      for(auto& topID : lay_it->second.second)
+      {
+        auto bot_it = spMap.find(botID); 
+        auto mid_it = spMap.find(midID);
+        auto top_it = spMap.find(topID);
+        //TODO
+        //Turn the SimSpacePoint to InternalSpacePoint
+        //Previously the BinnedSPGroup did this
+        //The return of the SeedFinder will be again SimSpacePoint --- could we just modify simspacefinder to deal with this internally?
+
+        //This is just a temporary version to check whether everything is the right class
+        spVec.insert(
+          spVec.end(),
+          bot_it->second.begin(),
+          bot_it->second.end()
+        );
+        spVec.insert(
+          spVec.end(),
+          mid_it->second.begin(),
+          mid_it->second.end()
+        );
+        spVec.insert(
+          spVec.end(),
+          top_it->second.begin(),
+          top_it->second.end()
+        );
+        std::unique_ptr<Acts::SpacePointGrid<SimSpacePoint>> grid =
+        Acts::SpacePointGridCreator::createGrid<SimSpacePoint>(gridConf);
+        auto spGroup = Acts::BinnedSPGroup<SimSpacePoint>(
+          spVec.begin(), spVec.end(), ct, bottomBinFinder, topBinFinder,
+          std::move(grid), config);
+
+        //std::vector<std::vector<Acts::Seed<SimSpacePoint>>> seedVector;
+        auto groupIt = spGroup.begin();
+        auto endOfGroups = spGroup.end();
+        for (; !(groupIt == endOfGroups); ++groupIt) 
+        {
+          seedVector.push_back(seedFinder.createSeedsForGroup(
+            groupIt.bottom(), groupIt.middle(), groupIt.top()));
+        }
+        spVec.clear();
+        //seedVector.push_back(seedFinder.createSeedsForGroup(bot_it->second, mid_it->second, top_it->second));
+      }
+    }
+  }
+
+  /*
   // create grid with bin sizes according to the configured geometry
   std::unique_ptr<Acts::SpacePointGrid<SimSpacePoint>> grid =
       Acts::SpacePointGridCreator::createGrid<SimSpacePoint>(gridConf);
@@ -198,7 +276,8 @@ ActsExamples::ProcessCode ActsExamples::SeedingAlgorithm::execute(
     seedVector.push_back(seedFinder.createSeedsForGroup(
         groupIt.bottom(), groupIt.middle(), groupIt.top()));
   }
-
+  */
+ 
   // SeedContainer seeds;
   ProtoTrackContainer protoTracks;  // Three hits
   int numSeeds = 0;
@@ -215,8 +294,8 @@ ActsExamples::ProcessCode ActsExamples::SeedingAlgorithm::execute(
     }
   }
 
-  ACTS_DEBUG(spVec.size() << " hits, " << seedVector.size() << " regions, "
-                          << numSeeds << " seeds");
+  //ACTS_DEBUG(spVec.size() << " hits, " << seedVector.size() << " regions, "
+  //                        << numSeeds << " seeds");
 
   ctx.eventStore.add(m_cfg.outputSeeds, std::move(seedVector));
   ctx.eventStore.add(m_cfg.outputProtoTracks, std::move(protoTracks));
